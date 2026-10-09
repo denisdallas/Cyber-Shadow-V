@@ -1,0 +1,128 @@
+import { SkinItem, TrailItem } from '../types/game';
+
+export const SKINS: SkinItem[] = [
+  {
+    id: 'default',
+    name: 'Cyber Operative',
+    description: 'Standard issue synthetic combat suit with cyan night-visor.',
+    price: 0,
+    unlocked: true,
+    color: '#00f5d4',
+    glowColor: '#00bbf9',
+    visorColor: '#ff0055',
+  },
+  {
+    id: 'neon_phantom',
+    name: 'Neon Phantom',
+    description: 'Ultraviolet optical cloak woven with dark phase resonators.',
+    price: 150,
+    unlocked: false,
+    color: '#e040fb',
+    glowColor: '#7c4dff',
+    visorColor: '#00f5d4',
+  },
+  {
+    id: 'cyber_shinobi',
+    name: 'Cyber Shinobi',
+    description: 'Traditional assassin weave amplified with toxic green hyper-mesh.',
+    price: 300,
+    unlocked: false,
+    color: '#00ff66',
+    glowColor: '#00cc44',
+    visorColor: '#ffff00',
+  },
+  {
+    id: 'solar_valkyrie',
+    name: 'Solar Valkyrie',
+    description: 'High-tier prototype armored in shimmering auric shielding.',
+    price: 550,
+    unlocked: false,
+    color: '#ffbe0b',
+    glowColor: '#fb5607',
+    visorColor: '#00f5d4',
+  },
+  {
+    id: 'void_stalker',
+    name: 'Void Stalker',
+    description: 'Experimental dark matter chassis. Strikes terror into enemy guards.',
+    price: 900,
+    unlocked: false,
+    color: '#ff0055',
+    glowColor: '#9d0208',
+    visorColor: '#ffffff',
+  },
+];
+
+export const BLADE_TRAILS: TrailItem[] = [
+  {
+    id: 'cyan_edge',
+    name: 'Cyan Pulse',
+    description: 'High frequency neon cyan plasma arc.',
+    price: 0,
+    unlocked: true,
+    color: '#00f5d4',
+  },
+  {
+    id: 'crimson_fury',
+    name: 'Crimson Fury',
+    description: 'Thermal red particle ribbon that burns retinas.',
+    price: 120,
+    unlocked: false,
+    color: '#ff0055',
+  },
+  {
+    id: 'emerald_laser',
+    name: 'Emerald Laser',
+    description: 'Coherent green laser residue slice.',
+    price: 250,
+    unlocked: false,
+    color: '#00ff66',
+  },
+  {
+    id: 'plasma_violet',
+    name: 'Plasma Violet',
+    description: 'Superheated violet lightning trail.',
+    price: 450,
+    unlocked: false,
+    color: '#b5179e',
+  },
+  {
+    id: 'golden_aurora',
+    name: 'Golden Aurora',
+    description: 'Pure auric trail left by master assassins.',
+    price: 750,
+    unlocked: false,
+    color: '#ffd166',
+  },
+];
+
+export const PERK_CONFIG = {
+  speed: {
+    name: 'Overclocked Agility',
+    description: 'Boost assassin sprint velocity by +10% per level.',
+    maxLevel: 4,
+    basePrice: 100,
+    priceMultiplier: 1.5,
+  },
+  strikeRange: {
+    name: 'Extended Reach',
+    description: 'Expand knife takedown radius by +15% per level.',
+    maxLevel: 4,
+    basePrice: 120,
+    priceMultiplier: 1.6,
+  },
+  smokeCapacity: {
+    name: 'Smoke Satchel',
+    description: 'Increase smoke bomb gadget capacity (+1 bomb per level).',
+    maxLevel: 3,
+    basePrice: 150,
+    priceMultiplier: 1.8,
+  },
+  cyberShield: {
+    name: 'Deflector Matrix',
+    description: 'Automatically deflect 1 fatal gunshot/laser attack per mission.',
+    maxLevel: 1,
+    basePrice: 350,
+    priceMultiplier: 1,
+  },
+};

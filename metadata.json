@@ -1,0 +1,8 @@
+{
+  "name": "Cyber Hunter: Stealth Assassin",
+  "description": "Retro-style top-down cyberpunk stealth action game. Infiltrate neon compounds, eliminate guards from the shadows, bypass laser traps, and master assassinations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
