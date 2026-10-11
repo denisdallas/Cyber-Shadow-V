@@ -150,6 +150,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, onPause }) => {
       // 1. Draw Cyberpunk Floor Grid
       drawFloorGrid(ctx, cameraRef.current.x, cameraRef.current.y, viewW, viewH);
 
+      // 1.5 Draw Infiltration Staging Safe Zone (if active)
+      drawSafeZone(ctx, engine);
+
       // 2. Draw Vents / Secret Routes
       drawVents(ctx, engine);
 
@@ -243,6 +246,34 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, onPause }) => {
     }
   };
 
+  const drawSafeZone = (ctx: CanvasRenderingContext2D, eng: GameEngine) => {
+    if (!eng.level?.safeZone) return;
+    const { x1, y1, x2, y2 } = eng.level.safeZone;
+    const minX = Math.min(x1, x2);
+    const minY = Math.min(y1, y2);
+    const w = Math.abs(x2 - x1);
+    const h = Math.abs(y2 - y1);
+
+    ctx.save();
+    // Soft cyber cyan aura
+    ctx.fillStyle = 'rgba(0, 245, 212, 0.05)';
+    ctx.fillRect(minX, minY, w, h);
+
+    // Tech dotted perimeter
+    ctx.strokeStyle = 'rgba(0, 245, 212, 0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([8, 6]);
+    ctx.strokeRect(minX, minY, w, h);
+    ctx.setLineDash([]);
+
+    // Staging zone watermark
+    ctx.fillStyle = 'rgba(0, 245, 212, 0.45)';
+    ctx.font = 'bold 10px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('STAGING AIRLOCK [SAFE ZONE]', minX + w / 2, minY + 26);
+    ctx.restore();
+  };
+
   const drawVents = (ctx: CanvasRenderingContext2D, eng: GameEngine) => {
     for (const v of eng.vents) {
       // Vent metallic frame
@@ -281,47 +312,126 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, onPause }) => {
 
   const drawLaserTraps = (ctx: CanvasRenderingContext2D, eng: GameEngine) => {
     for (const lz of eng.lasers) {
-      // Emitter nodes at ends
-      ctx.fillStyle = '#334155';
-      ctx.beginPath();
-      ctx.arc(lz.x1, lz.y1, 6, 0, Math.PI * 2);
-      ctx.arc(lz.x2, lz.y2, 6, 0, Math.PI * 2);
-      ctx.fill();
+      // Calculate angle and length of the laser
+      const dx = lz.x2 - lz.x1;
+      const dy = lz.y2 - lz.y1;
+      const dist = Math.hypot(dx, dy);
+
+      // Emitter node housings at both ends
+      [
+        { x: lz.x1, y: lz.y1 },
+        { x: lz.x2, y: lz.y2 },
+      ].forEach((node) => {
+        // Metallic emitter housing base
+        ctx.fillStyle = '#0f172a';
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Status LED on emitter
+        let ledColor = '#10b981'; // Green: Safe / Disarmed
+        let ledGlow = 'rgba(16, 185, 129, 0.4)';
+        if (lz.active) {
+          ledColor = '#ff0055'; // Red: Active / Lethal
+          ledGlow = 'rgba(255, 0, 85, 0.8)';
+        } else if (lz.isWarning) {
+          ledColor = '#f59e0b'; // Amber: Charging / Warning
+          ledGlow = 'rgba(245, 158, 11, 0.8)';
+        }
+
+        ctx.save();
+        ctx.fillStyle = ledColor;
+        ctx.shadowColor = ledColor;
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
 
       if (lz.active) {
-        // Outer laser glow
-        ctx.strokeStyle = 'rgba(255, 0, 85, 0.45)';
-        ctx.lineWidth = 7;
+        // PHASE 1: ACTIVE LETHAL PULSING LASER BEAM
+        // Broad neon glow
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 0, 85, 0.55)';
+        ctx.lineWidth = 10;
+        ctx.shadowColor = '#ff0055';
+        ctx.shadowBlur = 15;
         ctx.beginPath();
         ctx.moveTo(lz.x1, lz.y1);
         ctx.lineTo(lz.x2, lz.y2);
         ctx.stroke();
 
-        // Inner hot laser beam
+        // Inner intense beam
         ctx.strokeStyle = '#ff0055';
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = 3.5;
         ctx.beginPath();
         ctx.moveTo(lz.x1, lz.y1);
         ctx.lineTo(lz.x2, lz.y2);
         ctx.stroke();
 
-        // Laser core white beam
+        // Core white heat line
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(lz.x1, lz.y1);
         ctx.lineTo(lz.x2, lz.y2);
         ctx.stroke();
+        ctx.restore();
+      } else if (lz.isWarning) {
+        // PHASE 2: WARNING PRE-ACTIVATION CHARGE BEAM (Flickering Amber)
+        const flickerAlpha = 0.4 + Math.random() * 0.4;
+        ctx.save();
+        ctx.strokeStyle = `rgba(245, 158, 11, ${flickerAlpha * 0.8})`;
+        ctx.lineWidth = 5;
+        ctx.shadowColor = '#f59e0b';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.moveTo(lz.x1, lz.y1);
+        ctx.lineTo(lz.x2, lz.y2);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#fef08a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(lz.x1, lz.y1);
+        ctx.lineTo(lz.x2, lz.y2);
+        ctx.stroke();
+
+        // Digital warning tag at center of beam
+        const midX = (lz.x1 + lz.x2) / 2;
+        const midY = (lz.y1 + lz.y2) / 2;
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = 'bold 9px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('! CHARGING !', midX, midY - 8);
+        ctx.restore();
       } else {
-        // Inactive dotted line
-        ctx.strokeStyle = 'rgba(255, 0, 85, 0.15)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 6]);
+        // PHASE 3: DISARMED SAFE TRANSIT WINDOW (Green dotted guideline)
+        ctx.save();
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.35)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 7]);
         ctx.beginPath();
         ctx.moveTo(lz.x1, lz.y1);
         ctx.lineTo(lz.x2, lz.y2);
         ctx.stroke();
         ctx.setLineDash([]);
+
+        // Safe countdown progress along beam center
+        const remainingSafe = Math.max(0, lz.cycleTime - (lz.warningDuration ?? 0.8) - lz.timer);
+        if (remainingSafe > 0.4) {
+          const midX = (lz.x1 + lz.x2) / 2;
+          const midY = (lz.y1 + lz.y2) / 2;
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.7)';
+          ctx.font = 'bold 9px "JetBrains Mono", monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(`SAFE ${remainingSafe.toFixed(1)}s`, midX, midY - 6);
+        }
+        ctx.restore();
       }
     }
   };
@@ -692,6 +802,19 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, onPause }) => {
       ctx.shadowBlur = 8;
       ctx.beginPath();
       ctx.arc(0, 0, p.radius + 6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    // Infiltration Cloak (Spawn Grace Period Indicator)
+    if (eng.spawnGraceTimer > 0) {
+      const pulse = Math.sin(Date.now() * 0.01) * 2;
+      ctx.strokeStyle = 'rgba(0, 245, 212, 0.85)';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#00f5d4';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(0, 0, p.radius + 12 + pulse, 0, Math.PI * 2);
       ctx.stroke();
       ctx.shadowBlur = 0;
     }

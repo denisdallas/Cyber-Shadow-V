@@ -119,7 +119,20 @@ export const CAMPAIGN_LEVELS: LevelData[] = [
       { x: 600, y: 120, w: 20, h: 280 },
       { x: 620, y: 440, w: 140, h: 20 },
     ],
-    lasers: [],
+    lasers: [
+      {
+        id: 'lz2-1',
+        x1: 180,
+        y1: 420,
+        x2: 380,
+        y2: 420,
+        active: true,
+        cycleTime: 4.5,
+        activeDuration: 2.0,
+        warningDuration: 0.9,
+        timer: 0,
+      },
+    ],
     vents: [
       { id: 'v2-1', x: 260, y: 80, w: 40, h: 40, connectedVentId: 'v2-2' },
       { id: 'v2-2', x: 680, y: 220, w: 40, h: 40, connectedVentId: 'v2-1' },
@@ -1059,20 +1072,21 @@ export function generateEndlessWave(wave: number): LevelData {
   if (wave >= 3) types.push('armored');
   if (wave >= 4) types.push('sniper');
 
-  // Spawn positions distributed in rooms
+  // Spawn positions strictly located on the eastern compound (x >= 440)
+  // All slots are positioned behind solid concrete baffles with sightlines facing away from the player airlock
   const spawnSlots = [
-    { x: 260, y: 160 },
-    { x: 480, y: 160 },
-    { x: 740, y: 160 },
-    { x: 260, y: 350 },
-    { x: 500, y: 350 },
-    { x: 740, y: 350 },
-    { x: 260, y: 540 },
-    { x: 500, y: 540 },
-    { x: 740, y: 540 },
-    { x: 380, y: 250 },
-    { x: 620, y: 450 },
-    { x: 820, y: 280 },
+    { x: 460, y: 150, dir: 0, patrolAxis: 'y' as const },
+    { x: 620, y: 150, dir: Math.PI / 2, patrolAxis: 'x' as const },
+    { x: 820, y: 160, dir: -Math.PI / 2, patrolAxis: 'y' as const },
+    { x: 520, y: 350, dir: Math.PI / 2, patrolAxis: 'y' as const },
+    { x: 740, y: 350, dir: 0, patrolAxis: 'x' as const },
+    { x: 460, y: 550, dir: 0, patrolAxis: 'y' as const },
+    { x: 620, y: 550, dir: -Math.PI / 2, patrolAxis: 'x' as const },
+    { x: 820, y: 540, dir: -Math.PI / 2, patrolAxis: 'y' as const },
+    { x: 660, y: 260, dir: Math.PI / 2, patrolAxis: 'y' as const },
+    { x: 660, y: 440, dir: -Math.PI / 2, patrolAxis: 'y' as const },
+    { x: 860, y: 280, dir: 0, patrolAxis: 'y' as const },
+    { x: 860, y: 420, dir: 0, patrolAxis: 'y' as const },
   ];
 
   for (let i = 0; i < guardCount; i++) {
@@ -1081,24 +1095,78 @@ export function generateEndlessWave(wave: number): LevelData {
     const speed = 1.1 + Math.min(wave * 0.08, 0.9);
     const hp = type === 'armored' ? 2 : 1;
 
+    // Waypoints that patrol vertically or eastward, NEVER heading toward the west player spawn
+    const patrolPoints =
+      slot.patrolAxis === 'y'
+        ? [
+            { x: slot.x, y: slot.y - 65 },
+            { x: slot.x, y: slot.y + 65 },
+          ]
+        : [
+            { x: slot.x, y: slot.y },
+            { x: slot.x + 80, y: slot.y },
+          ];
+
     guards.push({
       id: `endless-g-${wave}-${i}`,
       type,
-      x: slot.x + (Math.random() * 40 - 20),
-      y: slot.y + (Math.random() * 40 - 20),
+      x: slot.x + (Math.random() * 20 - 10),
+      y: slot.y + (Math.random() * 20 - 10),
       radius: type === 'armored' ? 19 : type === 'shielded' ? 17 : 16,
       speed,
-      angle: Math.random() * Math.PI * 2,
+      angle: slot.dir, // Initial angle faces strictly away from staging area
       fov: type === 'sniper' ? Math.PI / 4 : Math.PI / 3,
-      visionRange: type === 'sniper' ? 240 + wave * 5 : 170 + Math.min(wave * 4, 40),
+      visionRange: type === 'sniper' ? 230 + Math.min(wave * 4, 30) : 165 + Math.min(wave * 3, 30),
       hp,
       maxHp: hp,
-      sweepAngleSpeed: 0.02 + Math.min(wave * 0.003, 0.03),
-      patrolPoints: [
-        { x: slot.x - 60, y: slot.y },
-        { x: slot.x + 60, y: slot.y },
-      ],
+      sweepAngleSpeed: 0.02 + Math.min(wave * 0.003, 0.025),
+      patrolPoints,
       currentPatrolIdx: 0,
+    });
+  }
+
+  // Pulsing stationary laser traps scaling with wave count
+  const waveLasers = [];
+  if (wave >= 2) {
+    waveLasers.push({
+      id: `elz-${wave}-1`,
+      x1: 410,
+      y1: 350,
+      x2: 550,
+      y2: 350,
+      active: true,
+      cycleTime: 4.2,
+      activeDuration: 2.0,
+      warningDuration: 0.9,
+      timer: 0,
+    });
+  }
+  if (wave >= 3) {
+    waveLasers.push({
+      id: `elz-${wave}-2`,
+      x1: 590,
+      y1: 350,
+      x2: 720,
+      y2: 350,
+      active: true,
+      cycleTime: 4.5,
+      activeDuration: 2.1,
+      warningDuration: 0.9,
+      timer: 2.0,
+    });
+  }
+  if (wave >= 5) {
+    waveLasers.push({
+      id: `elz-${wave}-3`,
+      x1: 570,
+      y1: 110,
+      x2: 570,
+      y2: 265,
+      active: true,
+      cycleTime: 4.0,
+      activeDuration: 1.8,
+      warningDuration: 0.9,
+      timer: 1.0,
     });
   }
 
@@ -1108,7 +1176,9 @@ export function generateEndlessWave(wave: number): LevelData {
     subtitle: `Eliminate all ${guardCount} hostiles. Survival rewards scale each round.`,
     width,
     height,
-    playerStart: { x: 80, y: 350 },
+    playerStart: { x: 90, y: 350 },
+    // Safe staging zone: player can never be spotted or shot while inside this zone
+    safeZone: { x1: 20, y1: 170, x2: 220, y2: 530 },
     targetCount: guardCount,
     parTime: 30 + wave * 5,
     walls: [
@@ -1116,43 +1186,24 @@ export function generateEndlessWave(wave: number): LevelData {
       { x: 0, y: height - 20, w: width, h: 20 },
       { x: 0, y: 0, w: 20, h: height },
       { x: width - 20, y: 0, w: 20, h: height },
-      // Interior blocks
-      { x: 180, y: 120, w: 30, h: 180 },
-      { x: 180, y: 400, w: 30, h: 180 },
-      { x: 380, y: 220, w: 200, h: 30 },
-      { x: 380, y: 450, w: 200, h: 30 },
-      { x: 660, y: 120, w: 30, h: 180 },
-      { x: 660, y: 400, w: 30, h: 180 },
+
+      // --- INFILTRATION COVER WALL (Protects spawn line-of-sight while leaving top and bottom completely open) ---
+      { x: 220, y: 260, w: 25, h: 180 }, // Solid tactical blast wall in front of spawn
+
+      // Interior tactical pillars (generous 140px-180px wide corridors everywhere, zero dead ends)
+      { x: 380, y: 110, w: 30, h: 170 }, // West-North cover pillar
+      { x: 380, y: 420, w: 30, h: 170 }, // West-South cover pillar
+      { x: 550, y: 265, w: 40, h: 170 }, // Central courtyard cover block
+      { x: 720, y: 110, w: 30, h: 170 }, // East-North cover pillar
+      { x: 720, y: 420, w: 30, h: 170 }, // East-South cover pillar
     ],
-    lasers: wave >= 3 ? [
-      {
-        id: `elz-${wave}-1`,
-        x1: 210,
-        y1: 350,
-        x2: 380,
-        y2: 350,
-        active: true,
-        cycleTime: 4,
-        activeDuration: 2,
-        timer: 0,
-      },
-      {
-        id: `elz-${wave}-2`,
-        x1: 580,
-        y1: 350,
-        x2: 660,
-        y2: 350,
-        active: true,
-        cycleTime: 4,
-        activeDuration: 2,
-        timer: 2,
-      },
-    ] : [],
+    lasers: waveLasers,
+    // Vents immediately reachable inside the staging area + eastern escape ports
     vents: [
-      { id: 'ev-1', x: 80, y: 80, w: 40, h: 40, connectedVentId: 'ev-2' },
-      { id: 'ev-2', x: 860, y: 580, w: 40, h: 40, connectedVentId: 'ev-1' },
-      { id: 'ev-3', x: 80, y: 580, w: 40, h: 40, connectedVentId: 'ev-4' },
-      { id: 'ev-4', x: 860, y: 80, w: 40, h: 40, connectedVentId: 'ev-3' },
+      { id: 'ev-1', x: 90, y: 220, w: 40, h: 40, connectedVentId: 'ev-2' }, // Upper vent right by spawn
+      { id: 'ev-2', x: 860, y: 550, w: 40, h: 40, connectedVentId: 'ev-1' }, // South-east exit
+      { id: 'ev-3', x: 90, y: 440, w: 40, h: 40, connectedVentId: 'ev-4' }, // Lower vent right by spawn
+      { id: 'ev-4', x: 860, y: 150, w: 40, h: 40, connectedVentId: 'ev-3' }, // North-east exit
     ],
     guards,
   };

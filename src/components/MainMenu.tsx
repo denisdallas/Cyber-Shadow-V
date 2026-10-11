@@ -21,8 +21,6 @@ import {
   Radio,
   Wind,
   Footprints,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 
 interface MainMenuProps {
@@ -42,7 +40,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   onClaimDailyMission,
 }) => {
   const [mutedStates, setMutedStates] = useState(soundManager.getMutedState());
-  const [showDailyModal, setShowDailyModal] = useState(false);
 
   const toggleSfx = () => {
     soundManager.toggleMute();
@@ -178,7 +175,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           <button
             onClick={() => {
               soundManager.playClick();
-              setShowDailyModal(!showDailyModal);
+              document.getElementById('daily-missions-section')?.scrollIntoView({ behavior: 'smooth' });
             }}
             className="w-1/2 relative flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-amber-300 font-extrabold text-xs uppercase tracking-wider border border-amber-500/30 transition-all hover:border-amber-400/60 shadow-lg cursor-pointer font-mono"
           >
@@ -196,7 +193,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         </div>
 
         {/* Daily Missions Embedded Panel */}
-        <div className="w-full max-w-xl mt-4 bg-slate-950/90 border border-amber-500/30 rounded-2xl p-4 shadow-xl text-left">
+        <div id="daily-missions-section" className="w-full max-w-xl mt-4 bg-slate-950/90 border border-amber-500/30 rounded-2xl p-4 shadow-xl text-left">
           <div className="flex items-center justify-between pb-2.5 border-b border-slate-800 mb-3">
             <div className="flex items-center gap-2">
               <Gift className="w-4 h-4 text-amber-400" />

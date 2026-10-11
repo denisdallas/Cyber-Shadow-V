@@ -24,6 +24,8 @@ export interface LaserTrap {
   cycleTime: number; // in seconds
   activeDuration: number;
   timer: number;
+  warningDuration?: number; // Pre-activation warning phase (e.g. 0.8s)
+  isWarning?: boolean;
 }
 
 export interface Vent {
@@ -149,6 +151,7 @@ export interface LevelData {
   walls: Wall[];
   lasers: LaserTrap[];
   vents: Vent[];
+  safeZone?: { x1: number; y1: number; x2: number; y2: number }; // Infiltration staging safe room where player cannot be spotted
   guards: Omit<Guard, 'state' | 'alertTimer' | 'waitTimer' | 'lastKnownPlayerPos' | 'investigatePos' | 'investigateTimer' | 'patrolForward' | 'shootCooldown'>[];
 }
 

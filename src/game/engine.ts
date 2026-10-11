@@ -31,7 +31,7 @@ export interface GameEngineOptions {
 }
 
 export class GameEngine {
-  private level: LevelData;
+  public level: LevelData;
   public player: Player;
   public guards: Guard[];
   public walls: Wall[];
@@ -42,6 +42,8 @@ export class GameEngine {
   public particles: Particle[] = [];
   public floatingTexts: FloatingText[] = [];
   public bladeHistory: Point[] = [];
+  public spawnGraceTimer: number = 3.0; // 3.0s Infiltration Cloak on level start to guarantee zero instant kills
+  private laserAlarmCooldown: number = 0;
 
   private isRunning: boolean = false;
   private isPaused: boolean = false;
@@ -268,6 +270,11 @@ export class GameEngine {
 
     this.metrics.timeElapsed += dt;
 
+    // Decay spawn grace infiltration cloak
+    if (this.spawnGraceTimer > 0) {
+      this.spawnGraceTimer = Math.max(0, this.spawnGraceTimer - dt);
+    }
+
     // Screen shake decay
     if (this.screenShake > 0) {
       this.screenShake = Math.max(0, this.screenShake - dt * 15);
@@ -380,14 +387,70 @@ export class GameEngine {
   }
 
   private updateLasers(dt: number) {
+    if (this.laserAlarmCooldown > 0) {
+      this.laserAlarmCooldown -= dt;
+    }
+
     for (const laser of this.lasers) {
+      const prevActive = laser.active;
+      const prevWarning = laser.isWarning;
+
       laser.timer = (laser.timer + dt) % laser.cycleTime;
       laser.active = laser.timer < laser.activeDuration;
 
-      // Check player crossing active laser
-      if (laser.active && !this.player.inVent) {
+      const warningDuration = laser.warningDuration ?? 0.9;
+      // Laser warning triggers right before active duration begins
+      laser.isWarning = !laser.active && laser.timer >= (laser.cycleTime - warningDuration);
+
+      // Procedural audio cues on state transitions
+      if (laser.isWarning && !prevWarning) {
+        soundManager.playLaserWarningHum();
+      }
+      if (laser.active && !prevActive) {
+        soundManager.playLaserPowerOn();
+      }
+
+      // Warning pre-activation sparks (Amber)
+      if (laser.isWarning && Math.random() < 0.3) {
+        const u = Math.random();
+        this.particles.push({
+          x: laser.x1 + (laser.x2 - laser.x1) * u,
+          y: laser.y1 + (laser.y2 - laser.y1) * u,
+          vx: (Math.random() - 0.5) * 2.5,
+          vy: (Math.random() - 0.5) * 2.5,
+          color: '#f59e0b',
+          size: 2.5,
+          alpha: 0.9,
+          life: 0,
+          maxLife: 0.25,
+          shape: 'square',
+        });
+      }
+
+      // Active lethal sparks (Red/White)
+      if (laser.active && Math.random() < 0.25) {
+        const u = Math.random();
+        this.particles.push({
+          x: laser.x1 + (laser.x2 - laser.x1) * u,
+          y: laser.y1 + (laser.y2 - laser.y1) * u,
+          vx: (Math.random() - 0.5) * 2.5,
+          vy: (Math.random() - 0.5) * 2.5,
+          color: Math.random() > 0.5 ? '#ff0055' : '#ffffff',
+          size: 2,
+          alpha: 0.9,
+          life: 0,
+          maxLife: 0.2,
+          shape: 'circle',
+        });
+      }
+
+      // Check player crossing active laser beam (spawn grace & safe room protect player)
+      if (laser.active && !this.player.inVent && this.spawnGraceTimer <= 0 && !this.isPlayerInSafeZone()) {
         if (this.lineCircleIntersect(laser.x1, laser.y1, laser.x2, laser.y2, this.player.x, this.player.y, this.player.radius)) {
-          this.triggerAlarm(this.player.x, this.player.y, 'Laser Tripwire Breached!');
+          if (this.laserAlarmCooldown <= 0) {
+            this.laserAlarmCooldown = 2.0; // Debounce so it only raises alarm once per trip
+            this.triggerAlarm(this.player.x, this.player.y, 'Security Laser Grid Breached!');
+          }
         }
       }
     }
@@ -498,6 +561,7 @@ export class GameEngine {
               this.player.x = targetVent.x + targetVent.w / 2;
               this.player.y = targetVent.y + targetVent.h / 2;
               this.player.targetPos = null;
+              this.metrics.ventsUsed++;
               this.addFloatingText('DUCT SHORTCUT USED', this.player.x, this.player.y - 25, '#00f5d4');
               soundManager.playClick();
             }
@@ -540,6 +604,7 @@ export class GameEngine {
         if (guard.state !== 'alert' && guard.state !== 'attacking') {
           guard.state = 'alert';
           guard.alertTimer = 0;
+          guard.shootCooldown = 1.35; // Crucial reaction window so player has time to react, hide, or strike
           this.metrics.alarmsTriggered++;
           soundManager.playAlert();
           this.triggerAlarm(this.player.x, this.player.y, 'INTRUDER SPOTTED!');
@@ -679,7 +744,21 @@ export class GameEngine {
     }
   }
 
+  public isPlayerInSafeZone(): boolean {
+    if (!this.level.safeZone) return false;
+    const { x1, y1, x2, y2 } = this.level.safeZone;
+    const minX = Math.min(x1, x2);
+    const maxX = Math.max(x1, x2);
+    const minY = Math.min(y1, y2);
+    const maxY = Math.max(y1, y2);
+    return this.player.x >= minX && this.player.x <= maxX && this.player.y >= minY && this.player.y <= maxY;
+  }
+
   private canGuardSeePlayer(guard: Guard): boolean {
+    // Player is completely protected from line of fire detection during spawn grace period or inside safe staging airlock
+    if (this.spawnGraceTimer > 0) return false;
+    if (this.isPlayerInSafeZone()) return false;
+
     const dx = this.player.x - guard.x;
     const dy = this.player.y - guard.y;
     const dist = Math.hypot(dx, dy);

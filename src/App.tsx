@@ -282,6 +282,8 @@ export default function App() {
               isAimingDistraction={engine.player.isAimingDistraction}
               shieldActive={engine.player.shieldActive}
               hasShield={engine.player.hasShield}
+              spawnGraceTimer={engine.spawnGraceTimer}
+              isSafeZone={engine.isPlayerInSafeZone()}
               onDeploySmoke={handleDeploySmoke}
               onToggleDistraction={handleToggleDistraction}
               onPause={handlePause}

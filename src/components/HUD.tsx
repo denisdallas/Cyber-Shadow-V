@@ -28,6 +28,8 @@ interface HUDProps {
   isAimingDistraction: boolean;
   shieldActive: boolean;
   hasShield: boolean;
+  spawnGraceTimer?: number;
+  isSafeZone?: boolean;
   onDeploySmoke: () => void;
   onToggleDistraction: () => void;
   onPause: () => void;
@@ -46,6 +48,8 @@ export const HUD: React.FC<HUDProps> = ({
   isAimingDistraction,
   shieldActive,
   hasShield,
+  spawnGraceTimer = 0,
+  isSafeZone = false,
   onDeploySmoke,
   onToggleDistraction,
   onPause,
@@ -137,8 +141,28 @@ export const HUD: React.FC<HUDProps> = ({
         </div>
       </div>
 
-      {/* Middle Alerts / Combo Chain Meter */}
+      {/* Middle Alerts / Combo Chain Meter / Infiltration Cloak Status */}
       <div className="flex flex-col items-center justify-center gap-2">
+        {/* Spawn Infiltration Cloak Banner */}
+        {spawnGraceTimer > 0 && (
+          <div className="bg-slate-950/90 border border-cyan-400 rounded-full px-4 py-1.5 backdrop-blur-md shadow-lg shadow-cyan-500/25 flex items-center gap-2 animate-pulse">
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+            <span className="text-xs sm:text-sm font-extrabold text-cyan-300 tracking-wider">
+              CLOAKED: INFILTRATION PROTOCOL ({spawnGraceTimer.toFixed(1)}s)
+            </span>
+          </div>
+        )}
+
+        {/* Staging Safe Zone Banner */}
+        {isSafeZone && spawnGraceTimer <= 0 && (
+          <div className="bg-slate-950/85 border border-emerald-400/70 rounded-full px-4 py-1 backdrop-blur-md shadow-md shadow-emerald-500/20 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="text-[11px] font-bold text-emerald-300 tracking-wider uppercase">
+              SECURITY AIRLOCK [SAFE ZONE]
+            </span>
+          </div>
+        )}
+
         {metrics.combo > 1 && (
           <div className="bg-black/80 border border-amber-500/70 rounded-2xl px-5 py-2 backdrop-blur-md shadow-xl shadow-amber-500/20 animate-bounce flex flex-col items-center">
             <div className="flex items-center gap-2 text-amber-400 font-extrabold text-base sm:text-lg tracking-wider">
