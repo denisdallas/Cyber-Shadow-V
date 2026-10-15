@@ -11,6 +11,7 @@ import {
   FloatingText,
   GameMetrics,
   DistractionLure,
+  BossTelemetry,
 } from '../types/game';
 import { soundManager } from '../audio/soundManager';
 import { SKINS, BLADE_TRAILS } from './shopData';
@@ -27,7 +28,7 @@ export interface GameEngineOptions {
   };
   onVictory: (metrics: GameMetrics) => void;
   onDefeat: (reason: string, metrics: GameMetrics) => void;
-  onStatsUpdate: (metrics: GameMetrics, guardsLeft: number) => void;
+  onStatsUpdate: (metrics: GameMetrics, guardsLeft: number, boss?: BossTelemetry | null) => void;
 }
 
 export class GameEngine {
@@ -67,7 +68,7 @@ export class GameEngine {
   private callbacks: {
     onVictory: (metrics: GameMetrics) => void;
     onDefeat: (reason: string, metrics: GameMetrics) => void;
-    onStatsUpdate: (metrics: GameMetrics, guardsLeft: number) => void;
+    onStatsUpdate: (metrics: GameMetrics, guardsLeft: number, boss?: BossTelemetry | null) => void;
   };
 
   constructor(options: GameEngineOptions) {
@@ -298,7 +299,7 @@ export class GameEngine {
     this.updateFloatingTexts(dt);
 
     const aliveGuards = this.guards.filter((g) => g.state !== 'dead').length;
-    this.callbacks.onStatsUpdate(this.metrics, aliveGuards);
+    this.callbacks.onStatsUpdate(this.metrics, aliveGuards, this.getBossTelemetry());
 
     // Check Victory
     if (aliveGuards === 0) {
@@ -306,6 +307,22 @@ export class GameEngine {
       soundManager.playVictory();
       this.callbacks.onVictory(this.metrics);
     }
+  }
+
+  public getBossTelemetry(): BossTelemetry | null {
+    const boss = this.guards.find((g) => g.type === 'boss' && g.state !== 'dead');
+    if (!boss) return null;
+    return {
+      id: boss.id,
+      name: boss.bossTitle || 'SECTOR BOSS',
+      subtitle: boss.bossSubtitle || 'Multi-Phase Encounter',
+      phase: boss.bossPhase || 1,
+      maxPhases: boss.maxBossPhases || 1,
+      hp: boss.hp,
+      maxHp: boss.maxHp,
+      attackState: boss.bossAttackState,
+      shieldActive: !!boss.bossShieldActive,
+    };
   }
 
   private updateDistractionLures(dt: number) {
@@ -590,11 +607,149 @@ export class GameEngine {
     for (const guard of this.guards) {
       if (guard.state === 'dead') continue;
 
-      // Special Boss logic
+      // Multi-Phase Boss Encounter Logic
       if (guard.type === 'boss') {
         guard.bossSpecialTimer = (guard.bossSpecialTimer || 0) + dt;
-        // Boss sweeps extra rapidly
-        guard.angle += guard.sweepAngleSpeed * 1.5;
+
+        // BOSS 1: THE APEX INQUISITOR
+        if (guard.id === 'boss-1') {
+          if (guard.bossPhase === 1) {
+            guard.angle += guard.sweepAngleSpeed * 1.5;
+            guard.bossAttackState = 'idle';
+          } else {
+            // Phase 2: Overdrive! Fast sweep + Rotating Twin Laser Sweep
+            guard.angle += guard.sweepAngleSpeed * 2.2;
+            const cycle = (guard.bossSpecialTimer % 4.8);
+            if (cycle < 1.8) {
+              guard.bossAttackState = 'laser_sweep';
+              guard.laserSweepAngle = (guard.laserSweepAngle || 0) + dt * 2.4;
+              if (cycle < dt * 2) {
+                soundManager.playBossLaserSweep();
+              }
+              // Check rotating twin laser intersection
+              if (!this.player.inVent && this.spawnGraceTimer <= 0 && !this.isPlayerInSafeZone()) {
+                const beamLen = 290;
+                const b1 = guard.laserSweepAngle;
+                const b2 = guard.laserSweepAngle + Math.PI;
+                const hit1 = this.lineCircleIntersect(guard.x, guard.y, guard.x + Math.cos(b1) * beamLen, guard.y + Math.sin(b1) * beamLen, this.player.x, this.player.y, this.player.radius);
+                const hit2 = this.lineCircleIntersect(guard.x, guard.y, guard.x + Math.cos(b2) * beamLen, guard.y + Math.sin(b2) * beamLen, this.player.x, this.player.y, this.player.radius);
+
+                if (hit1 || hit2) {
+                  if (this.laserAlarmCooldown <= 0) {
+                    this.laserAlarmCooldown = 1.4;
+                    this.triggerAlarm(this.player.x, this.player.y, 'OVERDRIVE LASER SWEEP!');
+                  }
+                }
+              }
+            } else {
+              guard.bossAttackState = 'idle';
+            }
+          }
+        }
+
+        // BOSS 2: LORD VANGUARD & OVERLORD AI
+        if (guard.id === 'boss-vanguard') {
+          guard.angle += guard.sweepAngleSpeed * 1.4;
+
+          if (guard.bossPhase === 1) {
+            // Phase 1: Kinetic Bastion Shield
+            guard.bossShieldActive = true;
+            guard.bossAttackState = 'idle';
+          } else if (guard.bossPhase === 2) {
+            // Phase 2: Orbital Laser Target Painter
+            guard.bossShieldActive = false;
+            guard.bossAttackState = 'orbital_strike';
+
+            if (!guard.targetedStrikePos) {
+              if (guard.bossSpecialTimer >= 4.2) {
+                guard.bossSpecialTimer = 0;
+                guard.targetedStrikePos = { x: this.player.x, y: this.player.y };
+                guard.targetedStrikeTimer = 1.35;
+                soundManager.playBossCharge();
+                this.addFloatingText('⚠️ ORBITAL TARGET LOCK! EVADE!', this.player.x, this.player.y - 30, '#ff0055');
+              }
+            } else {
+              guard.targetedStrikeTimer = (guard.targetedStrikeTimer || 0) - dt;
+
+              // Reticle warning sparks
+              if (Math.random() < 0.4) {
+                this.particles.push({
+                  x: guard.targetedStrikePos.x + (Math.random() - 0.5) * 32,
+                  y: guard.targetedStrikePos.y + (Math.random() - 0.5) * 32,
+                  vx: (Math.random() - 0.5) * 2,
+                  vy: (Math.random() - 0.5) * 2,
+                  color: '#ff0055',
+                  size: 3,
+                  alpha: 1,
+                  life: 0,
+                  maxLife: 0.25,
+                  shape: 'square',
+                });
+              }
+
+              if (guard.targetedStrikeTimer <= 0) {
+                const strikeX = guard.targetedStrikePos.x;
+                const strikeY = guard.targetedStrikePos.y;
+                guard.targetedStrikePos = null;
+                this.screenShake = 16;
+                soundManager.playGunshot();
+
+                // Blast detonation burst
+                for (let p = 0; p < 30; p++) {
+                  const ang = Math.random() * Math.PI * 2;
+                  const spd = 3 + Math.random() * 6;
+                  this.particles.push({
+                    x: strikeX,
+                    y: strikeY,
+                    vx: Math.cos(ang) * spd,
+                    vy: Math.sin(ang) * spd,
+                    color: Math.random() > 0.5 ? '#ff0055' : '#f59e0b',
+                    size: 4,
+                    alpha: 1,
+                    life: 0,
+                    maxLife: 0.5,
+                    shape: 'circle',
+                  });
+                }
+
+                // Blast radius collision
+                const distToBlast = Math.hypot(this.player.x - strikeX, this.player.y - strikeY);
+                if (distToBlast <= 68 && !this.player.inVent && this.spawnGraceTimer <= 0 && !this.isPlayerInSafeZone()) {
+                  if (this.player.shieldActive) {
+                    this.player.shieldActive = false;
+                    soundManager.playShieldDeflect();
+                    this.addFloatingText('DEFLECTOR CRUSHED BY ORBITAL BEAM!', this.player.x, this.player.y - 30, '#ffbe0b');
+                  } else {
+                    this.stop();
+                    soundManager.playDefeat();
+                    this.callbacks.onDefeat('Incinerated by Orbital Laser Strike.', this.metrics);
+                    return;
+                  }
+                }
+              }
+            }
+          } else if (guard.bossPhase === 3) {
+            // Phase 3: AI Overlord Matrix Meltdown (Quad-beam rotating laser vortex)
+            guard.bossAttackState = 'laser_sweep';
+            guard.laserSweepAngle = (guard.laserSweepAngle || 0) + dt * 1.5;
+
+            // Collision check against quad laser vortex
+            if (!this.player.inVent && this.spawnGraceTimer <= 0 && !this.isPlayerInSafeZone()) {
+              const beamLen = 330;
+              for (let b = 0; b < 4; b++) {
+                const bAngle = guard.laserSweepAngle + (b * Math.PI) / 2;
+                const bx = guard.x + Math.cos(bAngle) * beamLen;
+                const by = guard.y + Math.sin(bAngle) * beamLen;
+                if (this.lineCircleIntersect(guard.x, guard.y, bx, by, this.player.x, this.player.y, this.player.radius)) {
+                  if (this.laserAlarmCooldown <= 0) {
+                    this.laserAlarmCooldown = 1.3;
+                    this.triggerAlarm(this.player.x, this.player.y, 'MATRIX MELTDOWN BEAM HIT!');
+                  }
+                }
+              }
+            }
+          }
+        }
       }
 
       // Check guard vision towards player
@@ -793,8 +948,8 @@ export class GameEngine {
           continue;
         }
 
-        // Shield check: Shielded guard blocks frontal attacks
-        if (guard.type === 'shielded') {
+        // Shield check: Shielded guard or Boss Kinetic Shield blocks frontal attacks
+        if (guard.type === 'shielded' || (guard.type === 'boss' && guard.bossShieldActive)) {
           const guardToPlayerAngle = Math.atan2(this.player.y - guard.y, this.player.x - guard.x);
           let shieldAngleDiff = Math.abs(guardToPlayerAngle - guard.angle);
           while (shieldAngleDiff > Math.PI) shieldAngleDiff = Math.abs(shieldAngleDiff - Math.PI * 2);
@@ -803,7 +958,7 @@ export class GameEngine {
           if (shieldAngleDiff < Math.PI / 1.8 && !this.isPointInSmoke(guard.x, guard.y)) {
             // Attack deflected by shield!
             soundManager.playShieldDeflect();
-            this.addFloatingText('SHIELD BLOCKED!', guard.x, guard.y - 30, '#ef4444');
+            this.addFloatingText(guard.type === 'boss' ? 'KINETIC SHIELD BLOCKED!' : 'SHIELD BLOCKED!', guard.x, guard.y - 30, '#ef4444');
             this.player.attackCooldown = 0.3;
             continue;
           }
@@ -823,7 +978,6 @@ export class GameEngine {
     this.screenShake = 6;
 
     soundManager.playSlash();
-    guard.hp--;
 
     // Spawn slash trail particles
     const trailColor = BLADE_TRAILS.find((t) => t.id === this.player.trailId)?.color || '#00f5d4';
@@ -844,17 +998,111 @@ export class GameEngine {
       });
     }
 
-    if (guard.hp > 0) {
-      // Guard staggered / armor damaged
-      soundManager.playShieldDeflect();
-      this.addFloatingText(`ARMOR CRACKED! [${guard.hp}/${guard.maxHp}]`, guard.x, guard.y - 30, '#f59e0b');
-      guard.waitTimer = 0.4;
-      return;
-    }
+    // MULTI-PHASE BOSS DAMAGE & PHASE TRANSITION
+    if (guard.type === 'boss') {
+      guard.hp--;
+      guard.bossPhaseHp = Math.max(0, (guard.bossPhaseHp ?? guard.hp + 1) - 1);
 
-    // Guard Killed!
-    guard.state = 'dead';
-    soundManager.playAssassinate();
+      if (guard.hp > 0) {
+        soundManager.playShieldDeflect();
+        this.addFloatingText(`BOSS DAMAGED! [${guard.hp}/${guard.maxHp}]`, guard.x, guard.y - 30, '#f59e0b');
+        guard.waitTimer = 0.4;
+        return;
+      }
+
+      // Current phase HP reached 0: Check if another phase exists!
+      const currentPhase = guard.bossPhase || 1;
+      const maxPhases = guard.maxBossPhases || 1;
+
+      if (currentPhase < maxPhases) {
+        // ADVANCE TO NEXT BOSS PHASE!
+        guard.bossPhase = currentPhase + 1;
+        guard.maxHp = guard.maxBossPhaseHp || 4;
+        guard.hp = guard.maxHp;
+        guard.bossPhaseHp = guard.maxHp;
+
+        // In Phase 2+, Lord Vanguard sheds frontal kinetic barrier
+        if (guard.id === 'boss-vanguard' && guard.bossPhase >= 2) {
+          guard.bossShieldActive = false;
+        }
+
+        soundManager.playBossPhaseShift();
+        this.screenShake = 18;
+        this.addFloatingText(`⚡ PHASE ${guard.bossPhase} ENGAGED: OVERDRIVE! ⚡`, guard.x, guard.y - 45, '#ff0055');
+
+        // Shockwave EMP ring
+        for (let i = 0; i < 36; i++) {
+          const angle = (i / 36) * Math.PI * 2;
+          const speed = 4 + Math.random() * 5;
+          this.particles.push({
+            x: guard.x,
+            y: guard.y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            color: '#ff0055',
+            size: 3.5,
+            alpha: 1,
+            life: 0,
+            maxLife: 0.6,
+            shape: 'square',
+          });
+        }
+
+        // Spawn reinforcement minion from vent
+        if (this.vents.length > 0) {
+          const vent = this.vents[Math.floor(Math.random() * this.vents.length)];
+          const newType = guard.bossPhase === 3 ? 'armored' : 'shielded';
+          this.guards.push({
+            id: `boss-reinforce-${Date.now()}`,
+            type: newType,
+            x: vent.x + vent.w / 2,
+            y: vent.y + vent.h / 2,
+            radius: newType === 'armored' ? 19 : 17,
+            speed: 1.35,
+            angle: 0,
+            fov: Math.PI / 3,
+            visionRange: 175,
+            state: 'alert',
+            alertTimer: 0,
+            waitTimer: 0,
+            patrolPoints: [{ x: vent.x, y: vent.y }, { x: guard.x, y: guard.y }],
+            currentPatrolIdx: 0,
+            patrolForward: true,
+            shootCooldown: 1.2,
+            sweepAngleSpeed: 0.025,
+            hp: newType === 'armored' ? 2 : 1,
+            maxHp: newType === 'armored' ? 2 : 1,
+            lastKnownPlayerPos: { x: this.player.x, y: this.player.y },
+            investigatePos: null,
+            investigateTimer: 0,
+          });
+          this.addFloatingText('MINION REINFORCEMENTS!', vent.x, vent.y - 20, '#ff5400');
+        }
+
+        this.metrics.coinsEarned += 80;
+        return;
+      }
+
+      // FINAL PHASE CLEARED! BOSS ANNIHILATED!
+      guard.state = 'dead';
+      soundManager.playBossDefeat();
+      this.screenShake = 22;
+      this.addFloatingText('★ CLIMAX BOSS DESTROYED! ★', guard.x, guard.y - 45, '#00f5d4');
+    } else {
+      // Standard or Armored guard damage
+      guard.hp--;
+
+      if (guard.hp > 0) {
+        soundManager.playShieldDeflect();
+        this.addFloatingText(`ARMOR CRACKED! [${guard.hp}/${guard.maxHp}]`, guard.x, guard.y - 30, '#f59e0b');
+        guard.waitTimer = 0.4;
+        return;
+      }
+
+      // Guard Killed!
+      guard.state = 'dead';
+      soundManager.playAssassinate();
+    }
 
     // Increment combos and stats
     this.metrics.kills++;

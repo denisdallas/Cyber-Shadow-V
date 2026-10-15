@@ -1,5 +1,5 @@
 import React from 'react';
-import { GameMetrics } from '../types/game';
+import { GameMetrics, BossTelemetry } from '../types/game';
 import { soundManager } from '../audio/soundManager';
 import {
   Pause,
@@ -13,6 +13,8 @@ import {
   Crosshair,
   Flame,
   Radio,
+  Zap,
+  Skull,
 } from 'lucide-react';
 
 interface HUDProps {
@@ -20,6 +22,7 @@ interface HUDProps {
   guardsLeft: number;
   totalGuards: number;
   metrics: GameMetrics;
+  boss?: BossTelemetry | null;
   parTime?: number;
   smokeBombs: number;
   maxSmokeBombs: number;
@@ -40,6 +43,7 @@ export const HUD: React.FC<HUDProps> = ({
   guardsLeft,
   totalGuards,
   metrics,
+  boss,
   parTime,
   smokeBombs,
   maxSmokeBombs,
@@ -140,6 +144,58 @@ export const HUD: React.FC<HUDProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Boss Health & Phase Status Banner */}
+      {boss && (
+        <div className="w-full max-w-xl mx-auto bg-slate-950/95 border border-rose-500/60 rounded-2xl p-2.5 sm:p-3.5 backdrop-blur-md shadow-2xl shadow-rose-950/50 flex flex-col gap-1.5 my-1">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Skull className="w-4 h-4 text-rose-500 animate-pulse" />
+              <span className="text-xs sm:text-sm font-black text-white tracking-wider uppercase">
+                {boss.name}
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-bold font-mono">
+                PHASE {boss.phase} / {boss.maxPhases}
+              </span>
+              {boss.shieldActive && (
+                <span className="px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/50 text-[9px] font-bold flex items-center gap-1">
+                  <Shield className="w-2.5 h-2.5" /> KINETIC SHIELD
+                </span>
+              )}
+            </div>
+            <div className="text-xs font-bold font-mono text-rose-400">
+              {boss.hp} / {boss.maxHp} HP
+            </div>
+          </div>
+
+          {/* Segmented HP Gauge */}
+          <div className="w-full h-3 bg-slate-900 rounded-lg p-0.5 border border-slate-700/80 flex gap-1">
+            {Array.from({ length: boss.maxHp }).map((_, idx) => (
+              <div
+                key={idx}
+                className={`flex-1 h-full rounded-sm transition-all duration-300 ${
+                  idx < boss.hp
+                    ? boss.phase === 3
+                      ? 'bg-gradient-to-r from-fuchsia-500 to-rose-500 shadow-sm shadow-fuchsia-500/50'
+                      : boss.phase === 2
+                      ? 'bg-gradient-to-r from-rose-500 to-amber-500 shadow-sm shadow-rose-500/50'
+                      : 'bg-gradient-to-r from-cyan-400 to-emerald-400 shadow-sm shadow-cyan-400/50'
+                    : 'bg-slate-800/60'
+                }`}
+              />
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+            <span className="text-slate-400 truncate">{boss.subtitle}</span>
+            {boss.attackState && boss.attackState !== 'idle' && (
+              <span className="text-rose-400 font-bold uppercase animate-pulse flex items-center gap-1">
+                <Zap className="w-3 h-3" /> {boss.attackState.replace('_', ' ')}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Middle Alerts / Combo Chain Meter / Infiltration Cloak Status */}
       <div className="flex flex-col items-center justify-center gap-2">

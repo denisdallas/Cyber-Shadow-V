@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PlayerStats, DailyMission } from '../types/game';
+import { CAMPAIGN_LEVELS } from '../game/levels';
 import { soundManager } from '../audio/soundManager';
 import { PWAInstallBanner } from './PWAInstallBanner';
 import { getOrGenerateDailyMissions } from '../game/dailyMissions';
@@ -297,7 +298,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           <div className="text-[10px] text-slate-400 uppercase">Missions Cleared</div>
           <div className="text-sm sm:text-base font-bold text-white flex items-center justify-center gap-1.5 mt-0.5">
             <Award className="w-4 h-4 text-emerald-400" />
-            <span>{stats.levelsCompleted.length} / 7</span>
+            <span>{stats.levelsCompleted.length} / {CAMPAIGN_LEVELS.length}</span>
           </div>
         </div>
 

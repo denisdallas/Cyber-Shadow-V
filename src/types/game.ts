@@ -113,6 +113,18 @@ export interface Player {
   attackAnimTimer: number;
 }
 
+export interface BossTelemetry {
+  id: string;
+  name: string;
+  subtitle: string;
+  phase: number;
+  maxPhases: number;
+  hp: number;
+  maxHp: number;
+  attackState?: string;
+  shieldActive: boolean;
+}
+
 export interface Guard {
   id: string;
   type: GuardType;
@@ -137,10 +149,26 @@ export interface Guard {
   shootCooldown: number;
   sweepAngleSpeed: number; // for rotating sweeps
   bossSpecialTimer?: number;
+  // Multi-Phase Boss Encounter Mechanics
+  bossPhase?: number;
+  maxBossPhases?: number;
+  bossPhaseHp?: number;
+  maxBossPhaseHp?: number;
+  bossShieldActive?: boolean;
+  bossTitle?: string;
+  bossSubtitle?: string;
+  bossAttackState?: 'idle' | 'charging' | 'slam' | 'laser_sweep' | 'summon_minions' | 'overdrive' | 'orbital_strike';
+  bossAttackProgress?: number;
+  laserSweepAngle?: number;
+  targetedStrikePos?: Point | null;
+  targetedStrikeTimer?: number;
 }
 
 export interface LevelData {
   id: number;
+  chapter?: number; // 1, 2, or 3
+  chapterName?: string;
+  isBossEncounter?: boolean;
   name: string;
   subtitle: string;
   width: number;

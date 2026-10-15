@@ -3,7 +3,7 @@ import { GameEngine } from './game/engine';
 import { CAMPAIGN_LEVELS, generateEndlessWave } from './game/levels';
 import { loadPlayerStats, savePlayerStats } from './game/storage';
 import { updateMissionProgress, claimMissionReward } from './game/dailyMissions';
-import { GameMetrics, LevelData, PlayerStats } from './types/game';
+import { GameMetrics, LevelData, PlayerStats, BossTelemetry } from './types/game';
 import { GameCanvas } from './components/GameCanvas';
 import { HUD } from './components/HUD';
 import { MainMenu } from './components/MainMenu';
@@ -13,14 +13,24 @@ import { VictoryModal } from './components/VictoryModal';
 import { GameOverModal } from './components/GameOverModal';
 import { PauseModal } from './components/PauseModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { BootLoadingScreen } from './components/BootLoadingScreen';
+import { MissionBriefingScreen } from './components/MissionBriefingScreen';
 
 type AppView = 'menu' | 'playing';
 
 export default function App() {
   const [stats, setStats] = useState<PlayerStats>(() => loadPlayerStats());
   const [view, setView] = useState<AppView>('menu');
+  const [isBooting, setIsBooting] = useState(true);
   const [showLevelSelect, setShowLevelSelect] = useState(false);
   const [showShop, setShowShop] = useState(false);
+
+  // Pending mission briefing state
+  const [pendingBriefing, setPendingBriefing] = useState<{
+    level: LevelData;
+    endless: boolean;
+    wave: number;
+  } | null>(null);
 
   // Gameplay state
   const [isEndless, setIsEndless] = useState(false);
@@ -35,6 +45,7 @@ export default function App() {
   const [defeatReason, setDefeatReason] = useState('');
   const [guardsLeft, setGuardsLeft] = useState(0);
   const [totalGuards, setTotalGuards] = useState(0);
+  const [bossTelemetry, setBossTelemetry] = useState<BossTelemetry | null>(null);
 
   const [metrics, setMetrics] = useState<GameMetrics>({
     kills: 0,
@@ -79,6 +90,7 @@ export default function App() {
       setDefeatReason('');
       setTotalGuards(levelData.guards.length);
       setGuardsLeft(levelData.guards.length);
+      setBossTelemetry(null);
 
       const newEngine = new GameEngine({
         levelData,
@@ -163,9 +175,10 @@ export default function App() {
 
           updateStats(currentStats);
         },
-        onStatsUpdate: (m, aliveCount) => {
+        onStatsUpdate: (m, aliveCount, boss) => {
           setMetrics({ ...m });
           setGuardsLeft(aliveCount);
+          setBossTelemetry(boss || null);
         },
       });
 
@@ -179,26 +192,28 @@ export default function App() {
 
   const handleSelectLevel = (levelId: number) => {
     setCurrentLevelId(levelId);
+    setShowLevelSelect(false);
     const lvl = CAMPAIGN_LEVELS.find((l) => l.id === levelId) || CAMPAIGN_LEVELS[0];
-    startLevel(lvl, false, 1);
+    setPendingBriefing({ level: lvl, endless: false, wave: 1 });
   };
 
   const handleStartEndless = () => {
     const wave1 = generateEndlessWave(1);
-    startLevel(wave1, true, 1);
+    setPendingBriefing({ level: wave1, endless: true, wave: 1 });
   };
 
   const handleNextLevel = () => {
+    setIsVictory(false);
     if (isEndless) {
       const nextWave = endlessWave + 1;
       const waveData = generateEndlessWave(nextWave);
-      startLevel(waveData, true, nextWave);
+      setPendingBriefing({ level: waveData, endless: true, wave: nextWave });
     } else {
       const nextId = currentLevelId + 1;
       const nextLvl = CAMPAIGN_LEVELS.find((l) => l.id === nextId);
       if (nextLvl) {
         setCurrentLevelId(nextId);
-        startLevel(nextLvl, false, 1);
+        setPendingBriefing({ level: nextLvl, endless: false, wave: 1 });
       } else {
         handleGoHome();
       }
@@ -251,6 +266,25 @@ export default function App() {
       {/* Offline PWA Indicator */}
       <OfflineIndicator />
 
+      {/* Boot Loading Screen on Initial Startup */}
+      {isBooting && (
+        <BootLoadingScreen onComplete={() => setIsBooting(false)} />
+      )}
+
+      {/* Mission Tactical Briefing Loading Screen */}
+      {pendingBriefing && (
+        <MissionBriefingScreen
+          level={pendingBriefing.level}
+          isEndless={pendingBriefing.endless}
+          endlessWave={pendingBriefing.wave}
+          onDeploy={() => {
+            const target = pendingBriefing;
+            setPendingBriefing(null);
+            startLevel(target.level, target.endless, target.wave);
+          }}
+        />
+      )}
+
       {/* Main Menu View */}
       {view === 'menu' && (
         <MainMenu
@@ -274,6 +308,7 @@ export default function App() {
               guardsLeft={guardsLeft}
               totalGuards={totalGuards}
               metrics={metrics}
+              boss={bossTelemetry}
               parTime={!isEndless ? currentLevelData.parTime : undefined}
               smokeBombs={engine.player.smokeBombs}
               maxSmokeBombs={engine.player.maxSmokeBombs}

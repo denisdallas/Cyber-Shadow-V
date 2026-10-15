@@ -66,6 +66,13 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
           {level.name}
         </p>
 
+        {level.isBossEncounter && (
+          <div className="w-full py-1.5 px-3 rounded-xl bg-gradient-to-r from-rose-950/80 via-rose-900/40 to-slate-900 border border-rose-500/50 mt-3 mb-1 flex items-center justify-center gap-2 text-rose-300 font-bold text-xs font-mono uppercase tracking-widest animate-pulse">
+            <Skull className="w-4 h-4 text-rose-400" />
+            <span>CHAPTER CLIMAX BOSS OVERTHROWN!</span>
+          </div>
+        )}
+
         {/* Stars */}
         {!isEndless && (
           <div className="flex items-center gap-2 my-4">

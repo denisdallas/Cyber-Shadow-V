@@ -188,6 +188,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, onPause }) => {
       // 8. Draw Blade Trail History
       drawBladeTrail(ctx, engine);
 
+      // 8.5 Draw Boss Special Attacks (Sweeping Lasers & Orbital Targets)
+      drawBossSpecialAttacks(ctx, engine);
+
       // 9. Draw Guards
       drawGuards(ctx, engine);
 
@@ -660,6 +663,91 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, onPause }) => {
     ctx.restore();
   };
 
+  // 8.5 Boss Special Attacks (Sweeping Laser Matrix & Orbital Target Painter)
+  const drawBossSpecialAttacks = (ctx: CanvasRenderingContext2D, eng: GameEngine) => {
+    for (const g of eng.guards) {
+      if (g.state === 'dead' || g.type !== 'boss') continue;
+
+      // 1. Orbital Strike Target Painter (Lord Vanguard)
+      if (g.targetedStrikePos) {
+        const { x, y } = g.targetedStrikePos;
+        const timer = g.targetedStrikeTimer ?? 1.0;
+        const progress = Math.max(0, 1 - timer / 1.35); // 0 to 1
+
+        ctx.save();
+        // Danger ground circle
+        const groundGrad = ctx.createRadialGradient(x, y, 10, x, y, 68);
+        groundGrad.addColorStop(0, 'rgba(255, 0, 85, 0.45)');
+        groundGrad.addColorStop(0.7, 'rgba(255, 0, 85, 0.25)');
+        groundGrad.addColorStop(1, 'rgba(255, 0, 85, 0)');
+        ctx.fillStyle = groundGrad;
+        ctx.beginPath();
+        ctx.arc(x, y, 68, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Shrinking lock-on ring
+        const currentRingRadius = 68 * (1 - progress * 0.7);
+        ctx.strokeStyle = '#ff0055';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = '#ff0055';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(x, y, currentRingRadius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Crosshairs
+        ctx.beginPath();
+        ctx.moveTo(x - 24, y);
+        ctx.lineTo(x + 24, y);
+        ctx.moveTo(x, y - 24);
+        ctx.lineTo(x, y + 24);
+        ctx.stroke();
+
+        // Warning Text
+        ctx.fillStyle = '#ff0055';
+        ctx.font = 'bold 11px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`⚡ ORBITAL IMPACT: ${timer.toFixed(1)}s`, x, y - 76);
+        ctx.restore();
+      }
+
+      // 2. Sweeping Laser Matrix (Inquisitor Dual Beam & Vanguard Meltdown Quad Beam)
+      if (g.bossAttackState === 'laser_sweep' && g.laserSweepAngle !== undefined) {
+        ctx.save();
+        const beamCount = g.id === 'boss-vanguard' ? 4 : 2;
+        const beamLength = g.id === 'boss-vanguard' ? 330 : 290;
+        const beamColor = g.id === 'boss-vanguard' ? '#d946ef' : '#ff0055';
+
+        for (let b = 0; b < beamCount; b++) {
+          const angle = g.laserSweepAngle + (b * (Math.PI * 2 / beamCount));
+          const targetX = g.x + Math.cos(angle) * beamLength;
+          const targetY = g.y + Math.sin(angle) * beamLength;
+
+          // Outer laser glow
+          ctx.strokeStyle = beamColor;
+          ctx.lineWidth = 7;
+          ctx.globalAlpha = 0.4;
+          ctx.shadowColor = beamColor;
+          ctx.shadowBlur = 16;
+          ctx.beginPath();
+          ctx.moveTo(g.x, g.y);
+          ctx.lineTo(targetX, targetY);
+          ctx.stroke();
+
+          // Core laser beam (bright white/hot)
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2.5;
+          ctx.globalAlpha = 1.0;
+          ctx.beginPath();
+          ctx.moveTo(g.x, g.y);
+          ctx.lineTo(targetX, targetY);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+  };
+
   const drawGuards = (ctx: CanvasRenderingContext2D, eng: GameEngine) => {
     for (const g of eng.guards) {
       if (g.state === 'dead') continue;
@@ -674,19 +762,49 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, onPause }) => {
 
       // Guard Body
       if (g.type === 'boss') {
-        // Boss heavy mech
-        ctx.fillStyle = '#dc2626';
+        const isVanguard = g.id === 'boss-vanguard';
+        const phase = g.bossPhase || 1;
+
+        // Boss Chassis
+        ctx.fillStyle = isVanguard
+          ? phase === 3 ? '#581c87' : '#0f172a'
+          : phase === 2 ? '#991b1b' : '#dc2626';
         ctx.beginPath();
         ctx.arc(0, 0, g.radius, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = '#fca5a5';
-        ctx.lineWidth = 3;
+
+        ctx.strokeStyle = isVanguard
+          ? phase === 3 ? '#e879f9' : '#f59e0b'
+          : phase === 2 ? '#ff0055' : '#fca5a5';
+        ctx.lineWidth = 3.5;
         ctx.stroke();
 
-        // Dual shoulders
-        ctx.fillStyle = '#7f1d1d';
-        ctx.fillRect(-6, -g.radius - 4, 12, 8);
-        ctx.fillRect(-6, g.radius - 4, 12, 8);
+        // Dual heavy shoulder armor pods
+        ctx.fillStyle = isVanguard ? '#1e293b' : '#7f1d1d';
+        ctx.fillRect(-8, -g.radius - 5, 16, 9);
+        ctx.fillRect(-8, g.radius - 4, 16, 9);
+
+        // Rotating pulsing reactor core
+        const corePulse = Math.sin(Date.now() * 0.008) * 2;
+        ctx.fillStyle = isVanguard ? '#38bdf8' : '#00f5d4';
+        ctx.shadowColor = isVanguard ? '#38bdf8' : '#00f5d4';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(0, 0, 7 + corePulse, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Frontal Kinetic Forcefield Arc (Vanguard Phase 1)
+        if (g.bossShieldActive) {
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.9)';
+          ctx.lineWidth = 6;
+          ctx.shadowColor = '#38bdf8';
+          ctx.shadowBlur = 14;
+          ctx.beginPath();
+          ctx.arc(0, 0, g.radius + 6, -Math.PI / 2.6, Math.PI / 2.6);
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
       } else if (g.type === 'armored') {
         // Heavy armor plates
         ctx.fillStyle = '#d97706';
@@ -762,8 +880,31 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, onPause }) => {
         ctx.restore();
       }
 
-      // HP Bar for Armored or Boss guards
-      if (g.maxHp > 1) {
+      // HP Bar & Phase Badge for Armored or Boss guards
+      if (g.type === 'boss') {
+        const barW = 54;
+        const barH = 7;
+        const hpPercent = g.hp / g.maxHp;
+
+        // Phase badge
+        ctx.save();
+        ctx.fillStyle = (g.bossPhase || 1) > 1 ? '#ff0055' : '#38bdf8';
+        ctx.font = 'bold 10px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = ctx.fillStyle;
+        ctx.shadowBlur = 6;
+        ctx.fillText(`PHASE ${g.bossPhase || 1}/${g.maxBossPhases || 1}`, g.x, g.y - g.radius - 16);
+
+        // Segmented HP Bar
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(g.x - barW / 2, g.y - g.radius - 10, barW, barH);
+        ctx.fillStyle = hpPercent > 0.5 ? '#00f5d4' : hpPercent > 0.25 ? '#f59e0b' : '#ff0055';
+        ctx.fillRect(g.x - barW / 2, g.y - g.radius - 10, barW * hpPercent, barH);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(g.x - barW / 2, g.y - g.radius - 10, barW, barH);
+        ctx.restore();
+      } else if (g.maxHp > 1) {
         const barW = 32;
         const barH = 5;
         const hpPercent = g.hp / g.maxHp;
