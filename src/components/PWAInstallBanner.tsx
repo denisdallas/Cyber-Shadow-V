@@ -66,7 +66,7 @@ export const PWAInstallBanner: React.FC = () => {
                 <h3 className="font-black text-base text-white tracking-wide uppercase font-mono">
                   Install on iPhone / iPad
                 </h3>
-                <p className="text-xs text-slate-400">Enjoy fullscreen offline gameplay</p>
+                <p className="text-xs text-slate-400">Enjoy fullscreen gameplay</p>
               </div>
             </div>
 

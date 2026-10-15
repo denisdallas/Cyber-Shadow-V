@@ -195,14 +195,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
         {/* Daily Missions Embedded Panel */}
         <div id="daily-missions-section" className="w-full max-w-xl mt-4 bg-slate-950/90 border border-amber-500/30 rounded-2xl p-4 shadow-xl text-left">
-          <div className="flex items-center justify-between pb-2.5 border-b border-slate-800 mb-3">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pb-2.5 border-b border-slate-800 mb-3">
+            <div className="flex min-w-0 items-center gap-2">
               <Gift className="w-4 h-4 text-amber-400" />
               <h3 className="font-extrabold text-xs sm:text-sm uppercase tracking-wider text-amber-300 font-mono">
                 DAILY OBJECTIVES PROTOCOL
               </h3>
             </div>
-            <span className="text-[10px] font-mono text-slate-400 uppercase">
+            <span className="shrink-0 text-[10px] font-mono text-slate-400 uppercase whitespace-nowrap">
               DATE: {dailyState.date}
             </span>
           </div>
@@ -224,7 +224,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                       : 'bg-slate-900/80 border-slate-800'
                   }`}
                 >
-                  <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                  <div className="flex min-w-0 flex-1 items-start gap-2.5">
                     <div className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 mt-0.5">
                       {getMissionIcon(mission.type)}
                     </div>
@@ -237,7 +237,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                           +{mission.reward} C
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                      <p className="min-w-0 break-words text-[11px] leading-snug text-slate-400 mt-0.5">
                         {mission.description}
                       </p>
 
