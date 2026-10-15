@@ -12,7 +12,6 @@ import { ShopModal } from './components/ShopModal';
 import { VictoryModal } from './components/VictoryModal';
 import { GameOverModal } from './components/GameOverModal';
 import { PauseModal } from './components/PauseModal';
-import { OfflineIndicator } from './components/OfflineIndicator';
 import { BootLoadingScreen } from './components/BootLoadingScreen';
 import { MissionBriefingScreen } from './components/MissionBriefingScreen';
 
@@ -263,8 +262,6 @@ export default function App() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#070a0f] text-slate-100 flex flex-col">
-      {/* Offline PWA Indicator */}
-      <OfflineIndicator />
 
       {/* Boot Loading Screen on Initial Startup */}
       {isBooting && (
