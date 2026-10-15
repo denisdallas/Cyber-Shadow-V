@@ -6,16 +6,38 @@
     --font-mono: 'JetBrains Mono', monospace;
   }
 
-  body {
+  html, body {
     font-family: var(--font-cyber);
     margin: 0;
     padding: 0;
+    width: 100%;
+    height: 100%;
     overflow: hidden;
-    user-select: none;
-    -webkit-user-select: none;
+    touch-action: manipulation;
     -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
     background-color: #070a0f;
     color: #e2e8f0;
+  }
+
+  /* Prevent unintended pull-to-refresh or bounce on mobile browsers */
+  #root {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+  }
+
+  /* Canvas styling optimized for high-DPI and touch */
+  canvas {
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
 }
 

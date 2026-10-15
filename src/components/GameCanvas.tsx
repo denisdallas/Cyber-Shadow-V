@@ -18,6 +18,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, onPause }) => {
   const cameraRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Handle window resizing & DPI
+  const [dpr, setDpr] = useState(() => (typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 2.5) : 1));
+
   useEffect(() => {
     const handleResize = () => {
       if (containerRef.current) {
@@ -26,6 +28,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, onPause }) => {
           width: clientWidth || 800,
           height: clientHeight || 600,
         });
+        setDpr(Math.min(window.devicePixelRatio || 1, 2.5));
       }
     };
 
@@ -142,6 +145,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, onPause }) => {
       const shake = engine.getScreenShakeOffset();
 
       ctx.save();
+      ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, viewW, viewH);
 
       // Translate camera + shake
@@ -203,7 +207,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, onPause }) => {
 
     animId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animId);
-  }, [engine, dimensions, screenToWorld]);
+  }, [engine, dimensions, dpr, screenToWorld]);
 
   // Drawing Helper Functions
   const drawFloorGrid = (
@@ -896,8 +900,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine, onPause }) => {
     >
       <canvas
         ref={canvasRef}
-        width={dimensions.width}
-        height={dimensions.height}
+        width={Math.round(dimensions.width * dpr)}
+        height={Math.round(dimensions.height * dpr)}
+        style={{ width: `${dimensions.width}px`, height: `${dimensions.height}px` }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

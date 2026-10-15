@@ -16,25 +16,37 @@ export default defineConfig(() => {
           id: '/',
           name: 'Cyber Hunter: Stealth Assassin',
           short_name: 'CyberHunter',
-          description: 'Retro-style top-down cyberpunk stealth action game. Infiltrate compounds and eliminate guards from the shadows.',
+          description: 'Retro-style top-down cyberpunk stealth action game. Infiltrate neon compounds, eliminate guards from the shadows, bypass laser traps, and master assassinations.',
           theme_color: '#0a0e17',
           background_color: '#070a0f',
           display: 'standalone',
           start_url: '/',
           scope: '/',
-          orientation: 'portrait-primary',
+          orientation: 'any',
           icons: [
+            {
+              src: '/icon-192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any maskable',
+            },
             {
               src: '/pwa-192x192.png',
               sizes: '192x192',
               type: 'image/png',
-              purpose: 'any',
+              purpose: 'any maskable',
+            },
+            {
+              src: '/icon-512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any maskable',
             },
             {
               src: '/pwa-512x512.png',
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any',
+              purpose: 'any maskable',
             },
             {
               src: '/pwa-maskable-512x512.png',
@@ -46,6 +58,36 @@ export default defineConfig(() => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          runtimeCaching: [
+            {
+              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'google-fonts-cache',
+                expiration: {
+                  maxEntries: 10,
+                  maxAgeSeconds: 60 * 60 * 24 * 365,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+            {
+              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'gstatic-fonts-cache',
+                expiration: {
+                  maxEntries: 10,
+                  maxAgeSeconds: 60 * 60 * 24 * 365,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+          ],
         },
         devOptions: {
           enabled: true,
