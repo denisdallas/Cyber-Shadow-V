@@ -17,9 +17,9 @@ export const PWAInstallBanner: React.FC = () => {
     );
   }
 
-  const handleInstallClick = () => {
+  const handleInstallClick = async () => {
     soundManager.playClick();
-    install();
+    await install();
   };
 
   return (
@@ -27,7 +27,7 @@ export const PWAInstallBanner: React.FC = () => {
       {isInstallable && (
         <button
           onClick={handleInstallClick}
-          className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black rounded-xl shadow-lg shadow-emerald-500/25 transition-all transform hover:scale-105 active:scale-95 text-xs sm:text-sm uppercase tracking-wider border border-emerald-300/40 cursor-pointer"
+          className="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-cyan-300/50 bg-gradient-to-r from-cyan-400 via-emerald-400 to-teal-500 px-5 py-3 text-xs font-black uppercase tracking-wider text-slate-950 shadow-2xl shadow-cyan-500/30 transition-all hover:scale-105 hover:from-cyan-300 hover:via-emerald-300 hover:to-teal-400 active:scale-95 sm:bottom-6 sm:px-6 sm:text-sm"
         >
           <Download className="w-4 h-4 animate-bounce text-slate-950" />
           <span>INSTALL APP</span>
